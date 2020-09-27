@@ -8,6 +8,9 @@ using SixLabors.ImageSharp.Processing;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using Microsoft.ML.OnnxRuntime;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Diagnostics;
 
 using System.IO;
 
@@ -17,63 +20,88 @@ namespace ImageRecognition
     {
         static void Main(string[] args)
         {
-            String[] filePaths = Directory.GetFiles(@"./res/");
-            using var image = Image.Load<Rgb24>(args.FirstOrDefault() ?? filePaths[0]);
-            
-            const int TargetWidth = 224;
-            const int TargetHeight = 224;
+            String[] filePaths = Directory.GetFiles(@"./res/","*.jpg");
+            int numOfFiles = filePaths.Length;
+            Console.WriteLine($"NumOfImages ={numOfFiles}");
+            //Создаем numOfFiles задач(сколько картинок - столько задач)
+            var tasks = new Task[numOfFiles];
 
-            // Изменяем размер картинки до 224 x 224
-            image.Mutate(x =>
+            for (int i = 0; i < numOfFiles; i++)
             {
-                x.Resize(new ResizeOptions
+                //Запускаем задачи
+                tasks[i] = Task.Factory.StartNew(pi =>
                 {
-                    Size = new Size(TargetWidth, TargetHeight),
-                    Mode = ResizeMode.Crop // Сохраняем пропорции обрезая лишнее
+                    //idx - номер задачи
+                    int idx = (int)pi;
+
+                    //Working core
+
+                    using var image = Image.Load<Rgb24>(args.FirstOrDefault() ?? filePaths[idx]);
+
+                    const int TargetWidth = 224;
+                    const int TargetHeight = 224;
+
+                    // Изменяем размер картинки до 224 x 224
+                    image.Mutate(x =>
+                    {
+                        x.Resize(new ResizeOptions
+                        {
+                            Size = new Size(TargetWidth, TargetHeight),
+                            Mode = ResizeMode.Crop // Сохраняем пропорции обрезая лишнее
                 });
-            });
+                    });
 
-            // Перевод пикселов в тензор и нормализация
-            var input = new DenseTensor<float>(new[] { 1, 3, TargetHeight, TargetWidth });
-            var mean = new[] { 0.485f, 0.456f, 0.406f };
-            var stddev = new[] { 0.229f, 0.224f, 0.225f };
-            for (int y = 0; y < TargetHeight; y++)
-            {           
-                Span<Rgb24> pixelSpan = image.GetPixelRowSpan(y);
-                for (int x = 0; x < TargetWidth; x++)
-                {
-                    input[0, 0, y, x] = ((pixelSpan[x].R / 255f) - mean[0]) / stddev[0];
-                    input[0, 1, y, x] = ((pixelSpan[x].G / 255f) - mean[1]) / stddev[1];
-                    input[0, 2, y, x] = ((pixelSpan[x].B / 255f) - mean[2]) / stddev[2];
-                }
-            }
+                    // Перевод пикселов в тензор и нормализация
+                    var input = new DenseTensor<float>(new[] { 1, 3, TargetHeight, TargetWidth });
+                    var mean = new[] { 0.485f, 0.456f, 0.406f };
+                    var stddev = new[] { 0.229f, 0.224f, 0.225f };
+                    for (int y = 0; y < TargetHeight; y++)
+                    {
+                        Span<Rgb24> pixelSpan = image.GetPixelRowSpan(y);
+                        for (int x = 0; x < TargetWidth; x++)
+                        {
+                            input[0, 0, y, x] = ((pixelSpan[x].R / 255f) - mean[0]) / stddev[0];
+                            input[0, 1, y, x] = ((pixelSpan[x].G / 255f) - mean[1]) / stddev[1];
+                            input[0, 2, y, x] = ((pixelSpan[x].B / 255f) - mean[2]) / stddev[2];
+                        }
+                    }
 
-            // Подготавливаем входные данные нейросети. Имя input задано в файле модели
-            var inputs = new List<NamedOnnxValue>  
-            { 
-                NamedOnnxValue.CreateFromTensor("input", input) 
+                    // Подготавливаем входные данные нейросети. Имя input задано в файле модели
+                    var inputs = new List<NamedOnnxValue>
+            {
+                NamedOnnxValue.CreateFromTensor("input", input)
             };
 
-            // Вычисляем предсказание нейросетью
-            using var session = new InferenceSession("shufflenet-v2-10.onnx");  
-            Console.WriteLine("Predicting contents of image...");     
-            using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
+                    // Вычисляем предсказание нейросетью
+                    using var session = new InferenceSession("shufflenet-v2-10.onnx");
+                    Console.WriteLine("Predicting contents of image...");
+                    using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
 
-            // Получаем 1000 выходов и считаем для них softmax
-            var output = results.First().AsEnumerable<float>().ToArray();
-            var sum = output.Sum(x => (float)Math.Exp(x));
-            var softmax = output.Select(x => (float)Math.Exp(x) / sum);
+                    // Получаем 1000 выходов и считаем для них softmax
+                    var output = results.First().AsEnumerable<float>().ToArray();
+                    var sum = output.Sum(x => (float)Math.Exp(x));
+                    var softmax = output.Select(x => (float)Math.Exp(x) / sum);
 
-            // Выдаем 10 наиболее вероятных результатов на экран
-            foreach(var p in softmax
-                .Select((x, i) => new { Label = classLabels[i], Confidence = x })
-                .OrderByDescending(x => x.Confidence)
-                .Take(10))
-                Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
+                    // Выдаем 10 наиболее вероятных результатов на экран
+                    foreach (var p in softmax
+                        .Select((x, i) => new { Label = classLabels[i], Confidence = x })
+                        .OrderByDescending(x => x.Confidence)
+                        .Take(1)) // we need 1?
+                        Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
+
+
+                }, i);
+            }
+
+            //Ждем завершения всех задач
+            Task.WaitAll(tasks);
+
+
+
         }
 
-        static readonly string[] classLabels = new[] 
-        {   
+        static readonly string[] classLabels = new[]
+        {
             "tench",
             "goldfish",
             "great white shark",
