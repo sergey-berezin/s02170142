@@ -18,9 +18,25 @@ namespace ImageRecognition
 {
     class Program
     {
+
+        
         static void Main(string[] args)
         {
-            String[] filePaths = Directory.GetFiles(@"./res/","*.jpg");
+            String[] filePaths=null;
+            String dirr="./res/";
+            try{
+            //filePaths = Directory.GetFiles(@"./res/","*.jpg");
+            filePaths = Directory.GetFiles(dirr,"*.jpg");
+            }
+            catch(Exception e){
+                Console.WriteLine("Looks like you entered incorrect filepath");
+                Console.WriteLine("Or there is no jpg images in your folder");
+                Console.WriteLine(e.ToString());
+            }
+            //check on success directory opening
+            if(filePaths == null)
+             return;
+
             int numOfFiles = filePaths.Length;
             Console.WriteLine($"NumOfImages ={numOfFiles}");
             //Создаем numOfFiles задач(сколько картинок - столько задач)
@@ -88,6 +104,7 @@ namespace ImageRecognition
                         .OrderByDescending(x => x.Confidence)
                         .Take(1)) // we need 1?
                         Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
+                        //That we need to put into stream
 
 
                 }, i);
