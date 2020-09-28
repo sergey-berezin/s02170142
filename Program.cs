@@ -18,41 +18,21 @@ namespace ImageRecognition
 {
     class Program
     {
-
-        
-        static void Main(string[] args)
+        public static async IAsyncEnumerable<String> GetRecognitionAsync(int numOfFiles,String[] filePaths)
         {
-            String[] filePaths=null;
-            String dirr="./res/";
-            try{
-            //filePaths = Directory.GetFiles(@"./res/","*.jpg");
-            filePaths = Directory.GetFiles(dirr,"*.jpg");
-            }
-            catch(Exception e){
-                Console.WriteLine("Looks like you entered incorrect filepath");
-                Console.WriteLine("Or there is no jpg images in your folder");
-                Console.WriteLine(e.ToString());
-            }
-            //check on success directory opening
-            if(filePaths == null)
-             return;
-
-            int numOfFiles = filePaths.Length;
-            Console.WriteLine($"NumOfImages ={numOfFiles}");
-            //Создаем numOfFiles задач(сколько картинок - столько задач)
-            var tasks = new Task[numOfFiles];
-
+            var resultTaskArray = new String[numOfFiles];
             for (int i = 0; i < numOfFiles; i++)
             {
                 //Запускаем задачи
-                tasks[i] = Task.Factory.StartNew(pi =>
+                // var result 
+                resultTaskArray[i]= await Task<String>.Factory.StartNew(pi =>
                 {
                     //idx - номер задачи
                     int idx = (int)pi;
 
                     //Working core
 
-                    using var image = Image.Load<Rgb24>(args.FirstOrDefault() ?? filePaths[idx]);
+                    using var image = Image.Load<Rgb24>(filePaths[idx]);
 
                     const int TargetWidth = 224;
                     const int TargetHeight = 224;
@@ -104,14 +84,53 @@ namespace ImageRecognition
                         .OrderByDescending(x => x.Confidence)
                         .Take(1)) // we need 1?
                         Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
+                         return "TEESSST";//HERE will be inserted return message
+
                         //That we need to put into stream
 
 
                 }, i);
+                yield return resultTaskArray[i];
+            }
+        }
+        
+        static async Task Main(string[] args)
+        {
+            String[] filePaths=null;
+            String dirr="./res/";
+            try{
+            //filePaths = Directory.GetFiles(@"./res/","*.jpg");
+            filePaths = Directory.GetFiles(dirr,"*.jpg");
+            }
+            catch(Exception e){
+                Console.WriteLine("Looks like you entered incorrect filepath");
+                Console.WriteLine("Or there is no jpg images in your folder");
+                Console.WriteLine(e.ToString());
+            }
+            //check on success directory opening
+            if(filePaths == null)
+             return;
+
+            int numOfFiles = filePaths.Length;
+            Console.WriteLine($"NumOfImages ={numOfFiles}");
+            //Создаем numOfFiles задач(сколько картинок - столько задач)
+            // var tasks = new Task[numOfFiles];
+
+            int curImageCounter = 0;
+            await foreach(var recognitionResult in GetRecognitionAsync(numOfFiles,filePaths))
+            {
+                Console.WriteLine(recognitionResult.ToString());
+                curImageCounter+=1;
+                if (curImageCounter==numOfFiles)// все файлы обработали
+                {
+                    break;
+                }
             }
 
+            
+
             //Ждем завершения всех задач
-            Task.WaitAll(tasks);
+            //Task.WaitAll(tasks);
 
 
 
