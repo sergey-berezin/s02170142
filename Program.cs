@@ -18,116 +18,123 @@ namespace ImageRecognition
 {
     class Program
     {
-        public static async IAsyncEnumerable<String> GetRecognitionAsync(int numOfFiles,String[] filePaths)
+        public static async IAsyncEnumerable<String> GetRecognitionAsync(int numOfFiles, String[] filePaths)
         {
             var resultTaskArray = new String[numOfFiles];
             for (int i = 0; i < numOfFiles; i++)
             {
                 //Запускаем задачи
                 // var result 
-                resultTaskArray[i]= await Task<String>.Factory.StartNew(pi =>
-                {
-                    //idx - номер задачи
-                    int idx = (int)pi;
+                resultTaskArray[i] = await Task<String>.Factory.StartNew(pi =>
+                 {
+                     //idx - номер задачи
+                     int idx = (int)pi;
+                     
 
-                    //Working core
+                     //Working core
 
-                    using var image = Image.Load<Rgb24>(filePaths[idx]);
+                     using var image = Image.Load<Rgb24>(filePaths[idx]);
 
-                    const int TargetWidth = 224;
-                    const int TargetHeight = 224;
+                     const int TargetWidth = 224;
+                     const int TargetHeight = 224;
 
-                    // Изменяем размер картинки до 224 x 224
-                    image.Mutate(x =>
-                    {
-                        x.Resize(new ResizeOptions
-                        {
-                            Size = new Size(TargetWidth, TargetHeight),
-                            Mode = ResizeMode.Crop // Сохраняем пропорции обрезая лишнее
-                });
-                    });
+                     // Изменяем размер картинки до 224 x 224
+                     image.Mutate(x =>
+                      {
+                          x.Resize(new ResizeOptions
+                          {
+                              Size = new Size(TargetWidth, TargetHeight),
+                              Mode = ResizeMode.Crop // Сохраняем пропорции обрезая лишнее
+                          });
+                      });
 
-                    // Перевод пикселов в тензор и нормализация
-                    var input = new DenseTensor<float>(new[] { 1, 3, TargetHeight, TargetWidth });
-                    var mean = new[] { 0.485f, 0.456f, 0.406f };
-                    var stddev = new[] { 0.229f, 0.224f, 0.225f };
-                    for (int y = 0; y < TargetHeight; y++)
-                    {
-                        Span<Rgb24> pixelSpan = image.GetPixelRowSpan(y);
-                        for (int x = 0; x < TargetWidth; x++)
-                        {
-                            input[0, 0, y, x] = ((pixelSpan[x].R / 255f) - mean[0]) / stddev[0];
-                            input[0, 1, y, x] = ((pixelSpan[x].G / 255f) - mean[1]) / stddev[1];
-                            input[0, 2, y, x] = ((pixelSpan[x].B / 255f) - mean[2]) / stddev[2];
-                        }
-                    }
+                     // Перевод пикселов в тензор и нормализация
+                     var input = new DenseTensor<float>(new[] { 1, 3, TargetHeight, TargetWidth });
+                     var mean = new[] { 0.485f, 0.456f, 0.406f };
+                     var stddev = new[] { 0.229f, 0.224f, 0.225f };
+                     for (int y = 0; y < TargetHeight; y++)
+                     {
+                         Span<Rgb24> pixelSpan = image.GetPixelRowSpan(y);
+                         for (int x = 0; x < TargetWidth; x++)
+                         {
+                             input[0, 0, y, x] = ((pixelSpan[x].R / 255f) - mean[0]) / stddev[0];
+                             input[0, 1, y, x] = ((pixelSpan[x].G / 255f) - mean[1]) / stddev[1];
+                             input[0, 2, y, x] = ((pixelSpan[x].B / 255f) - mean[2]) / stddev[2];
+                         }
+                     }
 
-                    // Подготавливаем входные данные нейросети. Имя input задано в файле модели
-                    var inputs = new List<NamedOnnxValue>
-            {
+                     // Подготавливаем входные данные нейросети. Имя input задано в файле модели
+                     var inputs = new List<NamedOnnxValue>
+             {
                 NamedOnnxValue.CreateFromTensor("input", input)
-            };
+             };
 
-                    // Вычисляем предсказание нейросетью
-                    using var session = new InferenceSession("shufflenet-v2-10.onnx");
-                    Console.WriteLine("Predicting contents of image...");
-                    using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
+                     // Вычисляем предсказание нейросетью
+                     using var session = new InferenceSession("shufflenet-v2-10.onnx");
+                     Console.WriteLine("Predicting contents of image...");
+                     using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
 
-                    // Получаем 1000 выходов и считаем для них softmax
-                    var output = results.First().AsEnumerable<float>().ToArray();
-                    var sum = output.Sum(x => (float)Math.Exp(x));
-                    var softmax = output.Select(x => (float)Math.Exp(x) / sum);
-
-                    // Выдаем 10 наиболее вероятных результатов на экран
-                    foreach (var p in softmax
-                        .Select((x, i) => new { Label = classLabels[i], Confidence = x })
-                        .OrderByDescending(x => x.Confidence)
-                        .Take(1)) // we need 1?
-                        Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
-                         return "TEESSST";//HERE will be inserted return message
-
-                        //That we need to put into stream
+                     // Получаем 1000 выходов и считаем для них softmax
+                     var output = results.First().AsEnumerable<float>().ToArray();
+                     var sum = output.Sum(x => (float)Math.Exp(x));
+                     var softmax = output.Select(x => (float)Math.Exp(x) / sum);
 
 
-                }, i);
+
+
+                     // Выдаем 1 наиболее вероятный результат
+                     String returnStr = filePaths[idx];
+                     foreach (var p in softmax
+                         .Select((x, i) => new { Label = classLabels[i], Confidence = x })
+                         .OrderByDescending(x => x.Confidence)
+                         .Take(1)) // we need 1?
+                         returnStr = "File: " + returnStr + " " + p.Label + " zzz: " + " with confidence " + p.Confidence;
+                     return returnStr;
+                     // Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
+                     //  return "TEESSST";//HERE will be inserted return message
+
+                     //That we need to put into stream
+
+
+                 }, i);
+                
+
                 yield return resultTaskArray[i];
             }
         }
-        
+
         static async Task Main(string[] args)
         {
-            String[] filePaths=null;
-            String dirr="./res/";
-            try{
-            //filePaths = Directory.GetFiles(@"./res/","*.jpg");
-            filePaths = Directory.GetFiles(dirr,"*.jpg");
+            String[] filePaths = null;
+            String dirr = "./res/";
+            try
+            {
+                //filePaths = Directory.GetFiles(@"./res/","*.jpg");
+                filePaths = Directory.GetFiles(dirr, "*.jpg");
             }
-            catch(Exception e){
+            catch (Exception e)
+            {
                 Console.WriteLine("Looks like you entered incorrect filepath");
                 Console.WriteLine("Or there is no jpg images in your folder");
                 Console.WriteLine(e.ToString());
             }
             //check on success directory opening
-            if(filePaths == null)
-             return;
+            if (filePaths == null)
+                return;
 
             int numOfFiles = filePaths.Length;
             Console.WriteLine($"NumOfImages ={numOfFiles}");
             //Создаем numOfFiles задач(сколько картинок - столько задач)
             // var tasks = new Task[numOfFiles];
 
-            int curImageCounter = 0;
-            await foreach(var recognitionResult in GetRecognitionAsync(numOfFiles,filePaths))
+            
+            await foreach (var recognitionResult in GetRecognitionAsync(numOfFiles, filePaths))
             {
                 Console.WriteLine(recognitionResult.ToString());
-                curImageCounter+=1;
-                if (curImageCounter==numOfFiles)// все файлы обработали
-                {
-                    break;
-                }
+                
             }
 
-            
+
 
             //Ждем завершения всех задач
             //Task.WaitAll(tasks);
