@@ -19,9 +19,10 @@ namespace ImgProcLib
     {
         static CancellationTokenSource cts;
 
-        public static async IAsyncEnumerable<String>  GetRecognitionAsync (int numOfFiles, String[] filePaths)
+        public static async IAsyncEnumerable<String> GetRecognitionAsync(int numOfFiles, String[] filePaths)
         {
             var resultTaskArray = new String[numOfFiles];
+
             for (int i = 0; i < numOfFiles; i++)
             {
                 //Запускаем задачи
@@ -30,6 +31,7 @@ namespace ImgProcLib
                  {
                      //idx - номер задачи
                      int idx = (int)pi;
+
 
                      if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
                          return $"Processing with file{filePaths[idx]} was cancelled";
@@ -108,7 +110,7 @@ namespace ImgProcLib
 
                      if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
                          return $"Processing with file{filePaths[idx]} was cancelled";
-                         
+
                      return returnStr;
                      // Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
                      //  return "TEESSST";//HERE will be inserted return message
@@ -141,11 +143,11 @@ namespace ImgProcLib
                 //filePaths = Directory.GetFiles(@"./res/","*.jpg");
                 ImageProcClass.filePaths = Directory.GetFiles(this.dirr, "*.jpg");
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Console.WriteLine("Looks like you entered incorrect filepath");
                 Console.WriteLine("Or there is no jpg images in your folder");
-                Console.WriteLine(e.ToString());
+                //Console.WriteLine(e.ToString());
             }
 
         }
@@ -157,17 +159,18 @@ namespace ImgProcLib
         {
             int numOfFiles = filePaths.Length;
             Console.WriteLine($"NumOfImages ={numOfFiles}");
-            try{
-            await foreach (var recognitionResult in GetRecognitionAsync(numOfFiles, filePaths))
+            try
             {
-                Console.WriteLine(recognitionResult.ToString());
+                await foreach (var recognitionResult in GetRecognitionAsync(numOfFiles, filePaths))
+                {
+                    Console.WriteLine(recognitionResult.ToString());
 
-            }
+                }
             }
             catch (OperationCanceledException)
-                {
-                    Console.WriteLine("Tasks were cancelled");
-                }
+            {
+                Console.WriteLine("Tasks were cancelled");
+            }
 
         }
         public void InterruptTasks()

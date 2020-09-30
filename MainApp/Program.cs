@@ -22,8 +22,8 @@ namespace MainApp
             String inputDir = "";
             inputDir = Console.ReadLine();
             if (inputDir.Length < 2)
-                inputDir = "/Users/denis/Documents/C#/Lab1WithLibs/ImgProcLib/res";
-
+                //inputDir = "/Users/denis/Documents/C#/Lab1WithLibs/s02170142/ImgProcLib/res";
+                inputDir=@"./ImgProcLib/res";
             ImgProcLib.ImageProcClass imgProc = new ImgProcLib.ImageProcClass(inputDir);
             // Console.WriteLine(imgProc.GetFilePaths() == null);
             if (imgProc.GetFilePaths() == null)
