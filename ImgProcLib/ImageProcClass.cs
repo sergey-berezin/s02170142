@@ -27,7 +27,7 @@ namespace ImgProcLib
             {
                 //Запускаем задачи
                 // var result 
-                resultTaskArray[i] = await Task<String>.Factory.StartNew(pi =>
+                 resultTaskArray[i] = await Task<String>.Factory.StartNew(pi =>
                  {
                      //idx - номер задачи
                      int idx = (int)pi;
