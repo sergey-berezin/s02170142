@@ -197,7 +197,7 @@ namespace ImgProcLib
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("Tasks were cancelled");
+                Trace.WriteLine("Tasks were cancelled");
             }
 
         }
