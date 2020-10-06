@@ -14,7 +14,30 @@ using System.IO;
 
 namespace ImgProcLib
 {
+    public class ReturnMessage
+    {
+       private String filePath = "";
+       private  String predictionStringResult = "";
+       private  float predictionFloatResult=-1.0f;
+        
+        public String GetFilePath(){return filePath;}
+        public String GetPredictionStringResult(){return predictionStringResult;}
+        public float GetPredictionFloatResult(){return predictionFloatResult;}
+        public ReturnMessage(String filePath="",String predictionStringResult="",float predictionFloatResult=-1.0f)
+        {
+            this.filePath=filePath;
+            this.predictionStringResult=predictionStringResult;
+            this.predictionFloatResult=predictionFloatResult;
+        }
+        public override string ToString()
+        {
+            if (predictionFloatResult<0.0f)
+                return $"Processing with file: {filePath} was cancelled";
+            else
+                return $"File {filePath}  {predictionStringResult}  with confidence {predictionFloatResult} ";
+        }
 
+    }
     public class ImageProcClass
     {
         static CancellationTokenSource cts;
@@ -51,7 +74,7 @@ namespace ImgProcLib
 
 
 
-        public static async IAsyncEnumerable<String> GetRecognitionAsync<String>(Task<String>[] tasks)
+        public static async IAsyncEnumerable<ReturnMessage> GetRecognitionAsync<ReturnMessage>(Task<ReturnMessage>[] tasks)
         {
             foreach (var bucket in Interleaved(tasks))
             {
@@ -90,24 +113,25 @@ namespace ImgProcLib
             int numOfFiles = filePaths.Length;
             //Console.WriteLine($"NumOfImages ={numOfFiles}");
 
-            Task<String>[] tasks = new Task<String>[numOfFiles];
+            Task<ReturnMessage>[] tasks = new Task<ReturnMessage>[numOfFiles];
             for (int i = 0; i < numOfFiles; i++)
             {
 
-                tasks[i] = new Task<String>(pi =>
+                tasks[i] = new Task<ReturnMessage>(pi =>
                 {
                     //imageName - картинка, с которой работаем
                     String imageName = (String)pi;
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return $"Processing with file{imageName} was cancelled";
-
+                        // return $"Processing with file{imageName} was cancelled";
+                        return new ReturnMessage(imageName);
                     //Working core
 
                     using var image = Image.Load<Rgb24>(imageName);
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return $"Processing with file{imageName} was cancelled";
+                        //return $"Processing with file{imageName} was cancelled";
+                        return new ReturnMessage(imageName);
 
                     const int TargetWidth = 224;
                     const int TargetHeight = 224;
@@ -123,7 +147,8 @@ namespace ImgProcLib
                     });
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return $"Processing with file{imageName} was cancelled";
+                        return new ReturnMessage(imageName);
+                        // return $"Processing with file{imageName} was cancelled";
 
                     // Перевод пикселов в тензор и нормализация
                     var input = new DenseTensor<float>(new[] { 1, 3, TargetHeight, TargetWidth });
@@ -135,7 +160,8 @@ namespace ImgProcLib
                         for (int x = 0; x < TargetWidth; x++)
                         {
                             if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                                return $"Processing with file{imageName} was cancelled";
+                                return new ReturnMessage(imageName);
+                                // return $"Processing with file{imageName} was cancelled";
 
                             input[0, 0, y, x] = ((pixelSpan[x].R / 255f) - mean[0]) / stddev[0];
                             input[0, 1, y, x] = ((pixelSpan[x].G / 255f) - mean[1]) / stddev[1];
@@ -149,7 +175,8 @@ namespace ImgProcLib
                             NamedOnnxValue.CreateFromTensor("input", input)
                         };
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return $"Processing with file{imageName} was cancelled";
+                        return new ReturnMessage(imageName);
+                        // return $"Processing with file{imageName} was cancelled";
 
                     // Вычисляем предсказание нейросетью
                     // ImgProcLib/.shufflenet-v2-10.onnx.icloud
@@ -158,7 +185,9 @@ namespace ImgProcLib
 
                     using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return $"Processing with file{imageName} was cancelled";
+                        return new ReturnMessage(imageName);
+                        // return $"Processing with file{imageName} was cancelled";
+
                     // Получаем 1000 выходов и считаем для них softmax
                     var output = results.First().AsEnumerable<float>().ToArray();
                     var sum = output.Sum(x => (float)Math.Exp(x));
@@ -166,20 +195,23 @@ namespace ImgProcLib
 
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return $"Processing with file{imageName} was cancelled";
+                        return new ReturnMessage(imageName);
 
                     // Выдаем 1 наиболее вероятный результат
-                    String returnStr = imageName;
+                    // String returnStr = imageName;
+                    ReturnMessage returnMessage=new ReturnMessage(imageName);
                     foreach (var p in softmax
                      .Select((x, i) => new { Label = classLabels[i], Confidence = x })
                      .OrderByDescending(x => x.Confidence)
                      .Take(1)) // we need 1?
-                        returnStr = "File: " + returnStr + " " + p.Label + " " + " with confidence " + p.Confidence;
+                        // returnStr = "File: " + returnStr + " " + p.Label + " " + " with confidence " + p.Confidence;//p.Label - predictionName
+                        returnMessage=new ReturnMessage(imageName,p.Label,p.Confidence);
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return $"Processing with file{imageName} was cancelled";
-
-                    return returnStr;
+                        return new ReturnMessage(imageName);
+                        // return $"Processing with file{imageName} was cancelled";
+                    
+                    return returnMessage;
 
                 }, filePaths[i], ImageProcClass.cts.Token);
                 tasks[i].Start();
