@@ -17,29 +17,27 @@ namespace MainApp
         static async Task Main(string[] args)
         {
             Console.WriteLine("Hello user!");
-            Console.WriteLine("Please enter direcory path you would like to process");
-            Console.WriteLine("Or press enter to use default res folder ");
+            Console.WriteLine("Please, write direcory path you would like to process");
+            Console.WriteLine("Or press 'ENTER' to use default res folder ");
             String inputDir = "";
             inputDir = Console.ReadLine();
-            if (inputDir.Length < 2)
+            if (inputDir.Length == 0)
                 //inputDir = "/Users/denis/Documents/C#/Lab1WithLibs/s02170142/ImgProcLib/res";
                 inputDir=@"./ImgProcLib/res";
-            ImgProcLib.ImageProcClass imgProc = new ImgProcLib.ImageProcClass(inputDir);
+            ImgProcLib.ImageProcClass imgProc = new ImgProcLib.ImageProcClass(inputDir);//Create object
             // Console.WriteLine(imgProc.GetFilePaths() == null);
             if (imgProc.GetFilePaths() == null)
-
                 return;
-
 
             _=Task.Run(() =>
             {
-                Console.WriteLine("Press Spacebar to cancel");
+                Console.WriteLine("Press Spacebar to cancel" + '\n');
                 while (!(Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Spacebar))
                 {
                 }
                 imgProc.InterruptTasks();
             });
-            await imgProc.StartProc();
+            await imgProc.StartProc();//Launch Image processing
              
 
 

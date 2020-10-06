@@ -18,6 +18,8 @@ namespace ImgProcLib
     public class ImageProcClass
     {
         static CancellationTokenSource cts;
+        static String[] filePaths = null;
+        String dirr = "";
 
         public static Task<Task<T>>[] Interleaved<T>(IEnumerable<Task<T>> tasks)
         {
@@ -60,19 +62,14 @@ namespace ImgProcLib
 
 
 
-        String dirr = "";
-        static String[] filePaths = null;
-        //Завели токен
-
-        public ImageProcClass(String dirr = "./res/")
+        public ImageProcClass(String dirr = @"./ImgProcLib/res")
         {
             this.dirr = dirr;
             Console.WriteLine(this.dirr);
-            cts = new CancellationTokenSource();
+            cts = new CancellationTokenSource();//Initialized Cancellation Token for tasks interrupting
 
             try
             {
-                //filePaths = Directory.GetFiles(@"./res/","*.jpg");
                 ImageProcClass.filePaths = Directory.GetFiles(this.dirr, "*.jpg");
             }
             catch (Exception)
@@ -91,7 +88,7 @@ namespace ImgProcLib
         public async Task StartProc()
         {
             int numOfFiles = filePaths.Length;
-            Console.WriteLine($"NumOfImages ={numOfFiles}");
+            //Console.WriteLine($"NumOfImages ={numOfFiles}");
 
             Task<String>[] tasks = new Task<String>[numOfFiles];
             for (int i = 0; i < numOfFiles; i++)
@@ -182,15 +179,10 @@ namespace ImgProcLib
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
                         return $"Processing with file{filePaths[idx]} was cancelled";
-
+                    
                     return returnStr;
-                    // Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
-                    //  return "TEESSST";//HERE will be inserted return message
-
-                    //That we need to put into stream
-                }
-                , i, ImageProcClass.cts.Token
-                );
+                    
+                }, i, ImageProcClass.cts.Token);
                 tasks[i].Start();
             }
 
