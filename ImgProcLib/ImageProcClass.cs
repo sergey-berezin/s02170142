@@ -145,9 +145,9 @@ namespace ImgProcLib
 
                     // Подготавливаем входные данные нейросети. Имя input задано в файле модели
                     var inputs = new List<NamedOnnxValue>
-            {
-                NamedOnnxValue.CreateFromTensor("input", input)
-            };
+                        {
+                            NamedOnnxValue.CreateFromTensor("input", input)
+                        };
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
                         return $"Processing with file{imageName} was cancelled";
 
@@ -155,7 +155,7 @@ namespace ImgProcLib
                     // ImgProcLib/.shufflenet-v2-10.onnx.icloud
                     using var session = new InferenceSession("ImgProcLib/shufflenet-v2-10.onnx");
                     // using var session = new InferenceSession("shufflenet-v2-10.onnx");
-                    
+
                     using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
                         return $"Processing with file{imageName} was cancelled";
@@ -178,9 +178,9 @@ namespace ImgProcLib
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
                         return $"Processing with file{imageName} was cancelled";
-                    
+
                     return returnStr;
-                    
+
                 }, filePaths[i], ImageProcClass.cts.Token);
                 tasks[i].Start();
             }
