@@ -19,110 +19,42 @@ namespace ImgProcLib
     {
         static CancellationTokenSource cts;
 
-        public static async IAsyncEnumerable<String> GetRecognitionAsync(int numOfFiles, String[] filePaths)
+        public static Task<Task<T>>[] Interleaved<T>(IEnumerable<Task<T>> tasks)
         {
-            var resultTaskArray = new String[numOfFiles];
+            var inputTasks = tasks.ToList();
 
-            for (int i = 0; i < numOfFiles; i++)
+            var buckets = new TaskCompletionSource<Task<T>>[inputTasks.Count];
+            var results = new Task<Task<T>>[buckets.Length];
+            for (int i = 0; i < buckets.Length; i++)
             {
-                //Запускаем задачи
-                // var result 
-                 resultTaskArray[i] = await Task<String>.Factory.StartNew(pi =>
-                 {
-                     //idx - номер задачи
-                     int idx = (int)pi;
+                buckets[i] = new TaskCompletionSource<Task<T>>();
+                results[i] = buckets[i].Task;
+            }
+
+            int nextTaskIndex = -1;
+            Action<Task<T>> continuation = completed =>
+            {
+                var bucket = buckets[Interlocked.Increment(ref nextTaskIndex)];
+                bucket.TrySetResult(completed);
+            };
+
+            foreach (var inputTask in inputTasks)
+                inputTask.ContinueWith(continuation, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+
+            return results;
+        }
 
 
-                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                         return $"Processing with file{filePaths[idx]} was cancelled";
-
-                     //Working core
-
-                     using var image = Image.Load<Rgb24>(filePaths[idx]);
-
-                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                         return $"Processing with file{filePaths[idx]} was cancelled";
-
-                     const int TargetWidth = 224;
-                     const int TargetHeight = 224;
-
-                     // Изменяем размер картинки до 224 x 224
-                     image.Mutate(x =>
-                      {
-                          x.Resize(new ResizeOptions
-                          {
-                              Size = new Size(TargetWidth, TargetHeight),
-                              Mode = ResizeMode.Crop // Сохраняем пропорции обрезая лишнее
-                          });
-                      });
-
-                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                         return $"Processing with file{filePaths[idx]} was cancelled";
-
-                     // Перевод пикселов в тензор и нормализация
-                     var input = new DenseTensor<float>(new[] { 1, 3, TargetHeight, TargetWidth });
-                     var mean = new[] { 0.485f, 0.456f, 0.406f };
-                     var stddev = new[] { 0.229f, 0.224f, 0.225f };
-                     for (int y = 0; y < TargetHeight; y++)
-                     {
-                         Span<Rgb24> pixelSpan = image.GetPixelRowSpan(y);
-                         for (int x = 0; x < TargetWidth; x++)
-                         {
-                             if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                                 return $"Processing with file{filePaths[idx]} was cancelled";
-
-                             input[0, 0, y, x] = ((pixelSpan[x].R / 255f) - mean[0]) / stddev[0];
-                             input[0, 1, y, x] = ((pixelSpan[x].G / 255f) - mean[1]) / stddev[1];
-                             input[0, 2, y, x] = ((pixelSpan[x].B / 255f) - mean[2]) / stddev[2];
-                         }
-                     }
-
-                     // Подготавливаем входные данные нейросети. Имя input задано в файле модели
-                     var inputs = new List<NamedOnnxValue>
-             {
-                NamedOnnxValue.CreateFromTensor("input", input)
-             };
-                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                         return $"Processing with file{filePaths[idx]} was cancelled";
-
-                     // Вычисляем предсказание нейросетью
-                     using var session = new InferenceSession("shufflenet-v2-10.onnx");
-                     Console.WriteLine("Predicting contents of image...");
-                     using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
-                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                         return $"Processing with file{filePaths[idx]} was cancelled";
-                     // Получаем 1000 выходов и считаем для них softmax
-                     var output = results.First().AsEnumerable<float>().ToArray();
-                     var sum = output.Sum(x => (float)Math.Exp(x));
-                     var softmax = output.Select(x => (float)Math.Exp(x) / sum);
 
 
-                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                         return $"Processing with file{filePaths[idx]} was cancelled";
-
-                     // Выдаем 1 наиболее вероятный результат
-                     String returnStr = filePaths[idx];
-                     foreach (var p in softmax
-                      .Select((x, i) => new { Label = classLabels[i], Confidence = x })
-                      .OrderByDescending(x => x.Confidence)
-                      .Take(1)) // we need 1?
-                         returnStr = "File: " + returnStr + " " + p.Label + " " + " with confidence " + p.Confidence;
-
-                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                         return $"Processing with file{filePaths[idx]} was cancelled";
-
-                     return returnStr;
-                     // Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
-                     //  return "TEESSST";//HERE will be inserted return message
-
-                     //That we need to put into stream
 
 
-                 }, i, ImageProcClass.cts.Token);
-
-                if (ImageProcClass.cts.IsCancellationRequested)
-                    yield return "";
-                yield return resultTaskArray[i];
+        public static async IAsyncEnumerable<String> GetRecognitionAsync<String>(Task<String>[] tasks)
+        {
+            foreach (var bucket in Interleaved(tasks))
+            {
+                var t = await bucket;
+                yield return await t;
             }
         }
 
@@ -155,13 +87,118 @@ namespace ImgProcLib
         {
             return filePaths;
         }
+
         public async Task StartProc()
         {
             int numOfFiles = filePaths.Length;
             Console.WriteLine($"NumOfImages ={numOfFiles}");
+
+            Task<String>[] tasks = new Task<String>[numOfFiles];
+            for (int i = 0; i < numOfFiles; i++)
+            {
+
+                tasks[i] = new Task<String>(pi =>
+                {
+                    //idx - номер задачи
+                    int idx = (int)pi;
+
+
+                    if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+                        return $"Processing with file{filePaths[idx]} was cancelled";
+
+                    //Working core
+
+                    using var image = Image.Load<Rgb24>(filePaths[idx]);
+
+                    if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+                        return $"Processing with file{filePaths[idx]} was cancelled";
+
+                    const int TargetWidth = 224;
+                    const int TargetHeight = 224;
+
+                    // Изменяем размер картинки до 224 x 224
+                    image.Mutate(x =>
+                    {
+                        x.Resize(new ResizeOptions
+                        {
+                            Size = new Size(TargetWidth, TargetHeight),
+                            Mode = ResizeMode.Crop // Сохраняем пропорции обрезая лишнее
+                        });
+                    });
+
+                    if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+                        return $"Processing with file{filePaths[idx]} was cancelled";
+
+                    // Перевод пикселов в тензор и нормализация
+                    var input = new DenseTensor<float>(new[] { 1, 3, TargetHeight, TargetWidth });
+                    var mean = new[] { 0.485f, 0.456f, 0.406f };
+                    var stddev = new[] { 0.229f, 0.224f, 0.225f };
+                    for (int y = 0; y < TargetHeight; y++)
+                    {
+                        Span<Rgb24> pixelSpan = image.GetPixelRowSpan(y);
+                        for (int x = 0; x < TargetWidth; x++)
+                        {
+                            if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+                                return $"Processing with file{filePaths[idx]} was cancelled";
+
+                            input[0, 0, y, x] = ((pixelSpan[x].R / 255f) - mean[0]) / stddev[0];
+                            input[0, 1, y, x] = ((pixelSpan[x].G / 255f) - mean[1]) / stddev[1];
+                            input[0, 2, y, x] = ((pixelSpan[x].B / 255f) - mean[2]) / stddev[2];
+                        }
+                    }
+
+                    // Подготавливаем входные данные нейросети. Имя input задано в файле модели
+                    var inputs = new List<NamedOnnxValue>
+            {
+                NamedOnnxValue.CreateFromTensor("input", input)
+            };
+                    if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+                        return $"Processing with file{filePaths[idx]} was cancelled";
+
+                    // Вычисляем предсказание нейросетью
+                    // ImgProcLib/.shufflenet-v2-10.onnx.icloud
+                    using var session = new InferenceSession("ImgProcLib/shufflenet-v2-10.onnx");
+                    // using var session = new InferenceSession("shufflenet-v2-10.onnx");
+                    
+                    using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
+                    if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+                        return $"Processing with file{filePaths[idx]} was cancelled";
+                    // Получаем 1000 выходов и считаем для них softmax
+                    var output = results.First().AsEnumerable<float>().ToArray();
+                    var sum = output.Sum(x => (float)Math.Exp(x));
+                    var softmax = output.Select(x => (float)Math.Exp(x) / sum);
+
+
+                    if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+                        return $"Processing with file{filePaths[idx]} was cancelled";
+
+                    // Выдаем 1 наиболее вероятный результат
+                    String returnStr = filePaths[idx];
+                    foreach (var p in softmax
+                     .Select((x, i) => new { Label = classLabels[i], Confidence = x })
+                     .OrderByDescending(x => x.Confidence)
+                     .Take(1)) // we need 1?
+                        returnStr = "File: " + returnStr + " " + p.Label + " " + " with confidence " + p.Confidence;
+
+                    if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+                        return $"Processing with file{filePaths[idx]} was cancelled";
+
+                    return returnStr;
+                    // Console.WriteLine($"{p.Label} with confidence {p.Confidence}");
+                    //  return "TEESSST";//HERE will be inserted return message
+
+                    //That we need to put into stream
+                }
+                , i, ImageProcClass.cts.Token
+                );
+                tasks[i].Start();
+            }
+
+
+
             try
             {
-                await foreach (var recognitionResult in GetRecognitionAsync(numOfFiles, filePaths))
+                await foreach (var recognitionResult in GetRecognitionAsync(tasks))
                 {
                     Console.WriteLine(recognitionResult.ToString());
 
