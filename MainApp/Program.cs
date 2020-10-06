@@ -1,4 +1,5 @@
-﻿using System;
+﻿#define TRACE
+using System;
 using SixLabors.ImageSharp; // Из одноимённого пакета NuGet
 using SixLabors.ImageSharp.PixelFormats;
 using System.Linq;
@@ -10,10 +11,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.IO;
+
 namespace MainApp
 {
     class Program
     {
+        
         static async Task Main(string[] args)
         {
             Console.WriteLine("Hello user!");
