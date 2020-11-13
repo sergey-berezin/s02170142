@@ -1,0 +1,81 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:custom_namespace="clr-namespace:View"
+        mc:Ignorable="d" 
+        d:DesignWidth="800" 
+        d:DesignHeight="450"
+        x:Class="View.MainWindow"
+        Title="UI" 
+        SizeToContent="WidthAndHeight">
+
+    <Window.Resources>
+        <custom_namespace:BitmapConverter x:Key="ImageConverter"/>
+        <DataTemplate x:Key="recognitionResultImageDataTemplate">
+            <StackPanel Orientation="Horizontal">
+                <Image Width="30" Height="30" Source="{Binding FullFilePath, Mode=OneWay,
+                       Converter={StaticResource ImageConverter}}"/>
+                <TextBlock x:Name="imageLabelTextBlock" Text="{Binding PredictionStringResult}"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid x:Name="grid" ShowGridLines="False" Background="White" Width="1000" Height="600"
+          ColumnDefinitions="*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*" 
+          RowDefinitions="*,*,*,*,*,*,*,*,*,*,*,*">
+
+          <Button x:Name="openFolder" Margin="3,3,3,3"
+                Background="Green" Foreground = "White"
+                Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" 
+                Content="Open Folder" HorizontalAlignment="Stretch"
+                Height="25" Command="{Binding OpenCommand}"/>
+
+           <Button x:Name="interruptRecognition" Margin="3,3,3,3"
+                Background="Red" Foreground = "White"
+                Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="3"
+                Content="Interrupt recognition" HorizontalAlignment="Stretch"
+                Height="25" IsVisible="True" Command="{Binding CancelCommand}"/>
+
+            <TextBlock x:Name="progressBarTextBlock" Text="ProgressBarScale" 
+                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                   IsVisible="True" TextAlignment="Center"
+                   VerticalAlignment="Bottom"/>
+
+            <ProgressBar x:Name="progressBar" Minimum="0" Maximum="99" 
+                        Value="{Binding ProgressBar}" 
+                        Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5" 
+                        Margin="3,3,3,18" IsVisible="True"/>
+            
+            <TextBlock  Text="Select class" HorizontalAlignment="Left" 
+                   Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                   IsVisible="True" TextAlignment="Center" 
+                   VerticalAlignment="Bottom"/>
+
+            <ComboBox x:Name="possibleResultsComboBox"  Height="40"
+                  Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top"
+                  IsVisible="True" SelectedIndex="{Binding ComboBoxSelectedIndex, Mode=OneWayToSource}"
+                  Items="{Binding ComboBoxWithPossibleResults}"/>
+
+            <TextBlock x:Name="recognizedImagesTextBlock" 
+                   Grid.Row="0" Grid.Column="6" Grid.ColumnSpan="2"
+                   VerticalAlignment="Center" Text="Processed Images" IsVisible="True" 
+                   TextAlignment="Center"/>
+
+            <ListBox x:Name="recognizedImagesListBox"
+                        Grid.Row="1" Grid.Column="6" Grid.RowSpan="6" Grid.ColumnSpan="5"
+                        IsVisible="True" ItemTemplate="{StaticResource recognitionResultImageDataTemplate}"
+                        Items="{Binding RecognizedImagesCollection, Mode=TwoWay}"/>
+
+            <TextBlock x:Name="chosenTypeImagesTextBlock" 
+                   Grid.Row="0" Grid.Column="12" Grid.ColumnSpan="2"
+                   IsVisible="True" TextAlignment="Left" Text="Filtered Images"
+                   VerticalAlignment="Center" />
+
+            <ListBox x:Name="chosenTypeImagesListBox" Items="{Binding ChosenImagesCollection}" IsVisible="True"
+                        Grid.Row="1" Grid.Column="12" Grid.RowSpan="6" Grid.ColumnSpan="5"
+                        ItemTemplate="{StaticResource recognitionResultImageDataTemplate}"/>
+
+    </Grid>
+
+</Window>

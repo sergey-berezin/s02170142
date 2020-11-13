@@ -12,32 +12,26 @@ using System.Diagnostics;
 using System.IO;
 
 
+
 namespace ImgProcLib
 {
+
     public class ReturnMessage
     {
-        private String filePath = "";
-        private String predictionStringResult = "";
-        private float predictionFloatResult = -1.0f;
-
-        public String GetFilePath() { return filePath; }
-        public String GetPredictionStringResult() { return predictionStringResult; }
-        public float GetPredictionFloatResult() { return predictionFloatResult; }
-        public ReturnMessage(String filePath = "", String predictionStringResult = "", float predictionFloatResult = -1.0f)
+        public string FullFilePath { get; set; }
+        public string PredictionStringResult { get; set; }
+        public ReturnMessage(string filePath, string predictionStringResult)
         {
-            this.filePath = filePath;
-            this.predictionStringResult = predictionStringResult;
-            this.predictionFloatResult = predictionFloatResult;
+            PredictionStringResult = predictionStringResult;
+            FullFilePath = filePath;
         }
+
         public override string ToString()
         {
-            if (predictionFloatResult < 0.0f)
-                return $"Processing with file: {filePath} was cancelled";
-            else
-                return $"File {filePath}  {predictionStringResult}  with confidence {predictionFloatResult} ";
+            return $"File {FullFilePath}  {PredictionStringResult}";
         }
-
     }
+
     public class ImageProcClass
     {
         static CancellationTokenSource cts;
@@ -85,22 +79,21 @@ namespace ImgProcLib
 
 
 
-        public ImageProcClass(String dirr = @"./ImgProcLib/res")
+        public ImageProcClass(string dirr)
         {
             this.dirr = dirr;
-            // Console.WriteLine(this.dirr);
+
             cts = new CancellationTokenSource();//Initialized Cancellation Token for tasks interrupting
 
-            try
-            {
-                ImageProcClass.filePaths = Directory.GetFiles(this.dirr, "*.jpg");
-            }
-            catch (Exception)
-            {
-                Console.WriteLine("Looks like you entered incorrect filepath");
-                Console.WriteLine("Or there is no jpg images in your folder");
-                //Console.WriteLine(e.ToString());
-            }
+            // try
+            // {
+            //     ImageProcClass.filePaths = Directory.GetFiles(this.dirr, "*.jpg");
+            // }
+            // catch (Exception)
+            // {
+            //     Console.WriteLine("Looks like you entered incorrect filepath");
+            //     Console.WriteLine("Or there is no jpg images in your folder");
+            // }
 
         }
         public String[] GetFilePaths()
@@ -108,8 +101,25 @@ namespace ImgProcLib
             return filePaths;
         }
 
-        public async Task StartProc()
+        public async Task StartProc(PredictionQueue predictionQueue)
         {
+            if (_dirChangedFlag == true)
+            {
+                try
+                {
+                    ImageProcClass.filePaths = Directory.GetFiles(this.dirr, "*.jpg");
+                    // Console.WriteLine("filePath[0] " + ImageProcClass.filePaths[0]);
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Next message is from method 'StartProc()' ");
+                    Console.WriteLine("Looks like you entered incorrect filepath");
+                    Console.WriteLine("Or there is no jpg images in your folder");
+                    //Console.WriteLine(e.ToString());
+                }
+                _dirChangedFlag = false;
+
+            }
             int numOfFiles = filePaths.Length;
             //Console.WriteLine($"NumOfImages ={numOfFiles}");
 
@@ -127,15 +137,15 @@ namespace ImgProcLib
                     String imageName = (String)pi;
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        // return $"Processing with file{imageName} was cancelled";
-                        return new ReturnMessage(imageName);
+                                                          // return $"Processing with file{imageName} was cancelled";
+                        return new ReturnMessage(imageName, "");
                     //Working core
 
                     using var image = Image.Load<Rgb24>(imageName);
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
                         //return $"Processing with file{imageName} was cancelled";
-                        return new ReturnMessage(imageName);
+                        return new ReturnMessage(imageName, "");
 
                     const int TargetWidth = 224;
                     const int TargetHeight = 224;
@@ -151,7 +161,7 @@ namespace ImgProcLib
                     });
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return new ReturnMessage(imageName);
+                        return new ReturnMessage(imageName, "");
                     // return $"Processing with file{imageName} was cancelled";
 
                     // Перевод пикселов в тензор и нормализация
@@ -164,7 +174,7 @@ namespace ImgProcLib
                         for (int x = 0; x < TargetWidth; x++)
                         {
                             if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                                return new ReturnMessage(imageName);
+                                return new ReturnMessage(imageName, "");
                             // return $"Processing with file{imageName} was cancelled";
 
                             input[0, 0, y, x] = ((pixelSpan[x].R / 255f) - mean[0]) / stddev[0];
@@ -179,18 +189,14 @@ namespace ImgProcLib
                             NamedOnnxValue.CreateFromTensor("input", input)
                         };
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return new ReturnMessage(imageName);
+                        return new ReturnMessage(imageName, "");
                     // return $"Processing with file{imageName} was cancelled";
 
                     // Вычисляем предсказание нейросетью
-                    // ImgProcLib/.shufflenet-v2-10.onnx.icloud
-                    using var session = new InferenceSession("ImgProcLib/shufflenet-v2-10.onnx");
-                    // using var session = new InferenceSession("shufflenet-v2-10.onnx");
-
+                    using var session = new InferenceSession("/Users/denis/Non_iCloudFolder/C#/s02170142/shufflenet-v2-10.onnx");
                     using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = session.Run(inputs);
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return new ReturnMessage(imageName);
-                    // return $"Processing with file{imageName} was cancelled";
+                        return new ReturnMessage(imageName, "");
 
                     // Получаем 1000 выходов и считаем для них softmax
                     var output = results.First().AsEnumerable<float>().ToArray();
@@ -199,21 +205,18 @@ namespace ImgProcLib
 
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return new ReturnMessage(imageName);
+                        return new ReturnMessage(imageName, "");
 
                     // Выдаем 1 наиболее вероятный результат
-                    // String returnStr = imageName;
-                    ReturnMessage returnMessage = new ReturnMessage(imageName);
+                    ReturnMessage returnMessage = new ReturnMessage(imageName, "");
                     foreach (var p in softmax
                      .Select((x, i) => new { Label = classLabels[i], Confidence = x })
                      .OrderByDescending(x => x.Confidence)
-                     .Take(1)) // we need 1?
-                        // returnStr = "File: " + returnStr + " " + p.Label + " " + " with confidence " + p.Confidence;//p.Label - predictionName
-                        returnMessage = new ReturnMessage(imageName, p.Label, p.Confidence);
+                     .Take(1))
+                        returnMessage = new ReturnMessage(imageName, p.Label);//, p.Confidence);
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
-                        return new ReturnMessage(imageName);
-                    // return $"Processing with file{imageName} was cancelled";
+                        return new ReturnMessage(imageName, "");
 
                     return returnMessage;
 
@@ -227,8 +230,10 @@ namespace ImgProcLib
             {
                 await foreach (var recognitionResult in GetRecognitionAsync(tasks))
                 {
-                    Console.WriteLine(recognitionResult.ToString());
+                    // Console.WriteLine(recognitionResult.ToString());
 
+                    //Pass recognition result to communicate with other classes
+                    predictionQueue.Enqueue(recognitionResult);
                 }
             }
             catch (OperationCanceledException)
@@ -242,9 +247,16 @@ namespace ImgProcLib
             cts.Cancel();
         }
 
-
-        static readonly string[] classLabels = new[]
+        private bool _dirChangedFlag = false;
+        public void SetDirr(string dirr = "not_settt")
         {
+            _dirChangedFlag = true;
+            this.dirr = dirr;
+        }
+
+
+        public static readonly string[] classLabels = new[]
+         {
             "tench",
             "goldfish",
             "great white shark",
