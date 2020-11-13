@@ -35,7 +35,7 @@ namespace ImgProcLib
     public class ImageProcClass
     {
         static CancellationTokenSource cts;
-        static String[] filePaths = null;
+        public static string[] filePaths = null;
         String dirr = "";
 
         public static Task<Task<T>>[] Interleaved<T>(IEnumerable<Task<T>> tasks)
@@ -103,23 +103,23 @@ namespace ImgProcLib
 
         public async Task StartProc(PredictionQueue predictionQueue)
         {
-            if (_dirChangedFlag == true)
-            {
-                try
-                {
-                    ImageProcClass.filePaths = Directory.GetFiles(this.dirr, "*.jpg");
-                    // Console.WriteLine("filePath[0] " + ImageProcClass.filePaths[0]);
-                }
-                catch (Exception)
-                {
-                    Console.WriteLine("Next message is from method 'StartProc()' ");
-                    Console.WriteLine("Looks like you entered incorrect filepath");
-                    Console.WriteLine("Or there is no jpg images in your folder");
-                    //Console.WriteLine(e.ToString());
-                }
-                _dirChangedFlag = false;
+            // if (_dirChangedFlag == true)
+            // {
+            //     try
+            //     {
+            //         ImageProcClass.filePaths = Directory.GetFiles(this.dirr, "*.jpg");
+            //         // Console.WriteLine("filePath[0] " + ImageProcClass.filePaths[0]);
+            //     }
+            //     catch (Exception)
+            //     {
+            //         Console.WriteLine("Next message is from method 'StartProc()' ");
+            //         Console.WriteLine("Looks like you entered incorrect filepath");
+            //         Console.WriteLine("Or there is no jpg images in your folder");
+            //         //Console.WriteLine(e.ToString());
+            //     }
+            //     _dirChangedFlag = false;
 
-            }
+            // }
             int numOfFiles = filePaths.Length;
             //Console.WriteLine($"NumOfImages ={numOfFiles}");
 

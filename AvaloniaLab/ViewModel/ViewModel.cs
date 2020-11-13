@@ -166,12 +166,53 @@ namespace ViewModel
 
                 //launch recognition
                 _imgProcClass.SetDirr(_dirr);
+
+                string[] unRecognizedImageFiles = getUnProcessedImageFiles();
+                
+                ImageProcClass.filePaths= unRecognizedImageFiles;
+
                 _reopenFlag=true;
                 await _imgProcClass.StartProc(_predictionQueue);
             }
         }
+
+        // this function will match files in folder with already predicted files and 
+        // if file is new -> will process it in lib
+        string[] getUnProcessedImageFiles()
+        {
+            string[] allFilesInFolder=null;
+            string[] unProcessedImageFiles=null;
+            try
+                {
+                    allFilesInFolder = Directory.GetFiles(_dirr, "*.jpg");
+                    // Console.WriteLine("filePath[0] " + ImageProcClass.filePaths[0]);
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Next message is from method 'StartProc()' ");
+                    Console.WriteLine("Looks like you entered incorrect filepath");
+                    Console.WriteLine("Or there is no jpg images in your folder");
+                    //Console.WriteLine(e.ToString());
+                }
+            if (allFilesInFolder != null)
+                {
+                    unProcessedImageFiles = FilterImagesInDatabase(allFilesInFolder);
+                }
+            return unProcessedImageFiles;
+            
+        }
+
+        string[] FilterImagesInDatabase(string[] allFiles)
+        {
+            //todo
+            return allFiles;
+        }
+
+
+
         //flag mentions that we already have predicted some imgs previously
         bool _reopenFlag=false;
+        
         void DisplayComboBoxSelectedCollection(object obj, PropertyChangedEventArgs e)
         {
             if (RecognizedImagesCollection != null)
