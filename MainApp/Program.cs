@@ -11,11 +11,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.IO;
+
 using ImgProcLib;
 namespace MainApp
 {
     class Program
     {
+
         static void PredictionHandler_Console(object sender, PredictionEventArgs e)
         {
             Console.WriteLine("Queue " + ( e.RecognitionResult).ToString());
@@ -26,6 +28,7 @@ namespace MainApp
             Console.WriteLine("Hello user!");
             Console.WriteLine("Please, write direcory path you would like to process");
             Console.WriteLine("Or press 'ENTER' to use default res folder ");
+
 
             PredictionQueue predictionQueue = new PredictionQueue();
             predictionQueue.Enqueued+=PredictionHandler_Console;
@@ -47,6 +50,7 @@ namespace MainApp
                 }
                 imgProc.InterruptTasks();
             });
+
 
             await imgProc.StartProc(predictionQueue);//Launch Image processing
              
