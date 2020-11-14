@@ -12,7 +12,6 @@ using System.Diagnostics;
 using System.IO;
 
 
-
 namespace ImgProcLib
 {
 
@@ -79,6 +78,7 @@ namespace ImgProcLib
 
 
 
+
         public ImageProcClass(string dirr)
         {
             this.dirr = dirr;
@@ -100,6 +100,7 @@ namespace ImgProcLib
         {
             return filePaths;
         }
+
 
         public async Task StartProc(PredictionQueue predictionQueue)
         {
@@ -137,15 +138,19 @@ namespace ImgProcLib
                     String imageName = (String)pi;
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+
                                                           // return $"Processing with file{imageName} was cancelled";
                         return new ReturnMessage(imageName, "");
+
                     //Working core
 
                     using var image = Image.Load<Rgb24>(imageName);
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
                         //return $"Processing with file{imageName} was cancelled";
+
                         return new ReturnMessage(imageName, "");
+
 
                     const int TargetWidth = 224;
                     const int TargetHeight = 224;
@@ -161,7 +166,9 @@ namespace ImgProcLib
                     });
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+
                         return new ReturnMessage(imageName, "");
+
                     // return $"Processing with file{imageName} was cancelled";
 
                     // Перевод пикселов в тензор и нормализация
@@ -174,6 +181,7 @@ namespace ImgProcLib
                         for (int x = 0; x < TargetWidth; x++)
                         {
                             if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+
                                 return new ReturnMessage(imageName, "");
                             // return $"Processing with file{imageName} was cancelled";
 
@@ -189,6 +197,7 @@ namespace ImgProcLib
                             NamedOnnxValue.CreateFromTensor("input", input)
                         };
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+
                         return new ReturnMessage(imageName, "");
                     // return $"Processing with file{imageName} was cancelled";
 
@@ -205,6 +214,7 @@ namespace ImgProcLib
 
 
                     if (cts.Token.IsCancellationRequested)// -- проверка на отмену извне
+
                         return new ReturnMessage(imageName, "");
 
                     // Выдаем 1 наиболее вероятный результат
@@ -230,6 +240,7 @@ namespace ImgProcLib
             {
                 await foreach (var recognitionResult in GetRecognitionAsync(tasks))
                 {
+
                     // Console.WriteLine(recognitionResult.ToString());
 
                     //Pass recognition result to communicate with other classes
@@ -246,6 +257,7 @@ namespace ImgProcLib
         {
             cts.Cancel();
         }
+
 
         private bool _dirChangedFlag = false;
         public void SetDirr(string dirr = "not_settt")
