@@ -27,7 +27,6 @@ namespace ViewModel
 
         public int Id { get; set; }
         public string PredictionStringResult { get; set; }
-        // public int SameResultsCounter {get; set; }
         public ICollection<ImageRecognized> RecognizedImages { get; set; }
     }
 
@@ -38,27 +37,9 @@ namespace ViewModel
         public byte[] BinaryFile { get; set; }
     }
 
-    // [NotMapped]
-    // public class StatisticStruct
-    // {
-    //     public string stringResult;
-    //     public int repeatCnt;
-    // }
 
     public class ImagesLibraryContext : DbContext
     {
-        //     [NotMapped]
-        //     public List<StatisticStruct> statList = new List<StatisticStruct>();
-        // public int IsContainStringInList(string s)
-        // {
-        //     int index = -1;
-        //     foreach (var t in statList)
-        //     { index++;
-        //         if (s.Equals(t.stringResult))
-        //             return index;
-        //     }
-        //     return -1;
-        // }
 
         //some trick from stackoverflow
         public ImagesLibraryContext() { Database.EnsureCreated(); }
@@ -85,42 +66,38 @@ namespace ViewModel
             numOfRepeatedFiles = query.Count();
 
             if (numOfRepeatedFiles > 0)
-            
+
             {
                 ImageRecognized imageRecognized = null;
 
                 foreach (var fileInQuery in query)
                 {
-                    
-                    Entry(fileInQuery).Reference("ImageRecognizedDetails").Load();
+
+                    Entry(fileInQuery).Reference(obj => obj.ImageRecognizedDetails).Load();
                     Entry(fileInQuery).Reference(obj => obj.ImageType).Load();
 
 
                     byte[] bdBinaryFile = fileInQuery.ImageRecognizedDetails.BinaryFile;
 
-                    
+
                     Stream stream = File.OpenRead(imagePath);
                     byte[] byteArrayImage = new byte[stream.Length];
                     stream.Read(byteArrayImage, 0, (int)stream.Length);
 
 
-                    
+
                     if (IsByteArraysEqual(bdBinaryFile, byteArrayImage))
                     {
 
                         imageRecognized = fileInQuery;
                         break;
                     }
-
-
-
                 }
 
-                
                 if (imageRecognized != null)
                 {
-                
-                
+
+
                     return new ReturnMessage(imagePath, imageRecognized.ImageType.PredictionStringResult);
                 }
                 else
@@ -156,7 +133,7 @@ namespace ViewModel
             //set binary content
             imgStruct.ImageRecognizedDetails.BinaryFile = byteArrayImage;
 
-            
+
             PredictionResult predictionResult;
             try
             {
@@ -169,7 +146,7 @@ namespace ViewModel
             }
             if (predictionResult == null)
             {
-                imgStruct.ImageType = new PredictionResult() { PredictionStringResult = processedImage.PredictionStringResult };//,SameResultsCounter = 1};
+                imgStruct.ImageType = new PredictionResult() { PredictionStringResult = processedImage.PredictionStringResult };
                 imgStruct.ImageType.RecognizedImages = new List<ImageRecognized>();
                 imgStruct.ImageType.RecognizedImages.Add(imgStruct);
 
@@ -180,31 +157,12 @@ namespace ViewModel
             else
             {
                 imgStruct.ImageType = predictionResult;
-                // imgStruct.ImageType.SameResultsCounter += 1;
                 imgStruct.ImageType.RecognizedImages.Add(imgStruct);
 
                 Images.Add(imgStruct);
                 Details.Add(imgStruct.ImageRecognizedDetails);
             }
-
-            // int index=IsContainStringInList(imgStruct.ImageType.PredictionStringResult);
-            // if (index <0)
-            // {
-            //     statList[index].repeatCnt = imgStruct.ImageType.SameResultsCounter;
-            // }
-            // else
-            // {
-            //     statList.Add(new StatisticStruct(){stringResult=imgStruct.ImageType.PredictionStringResult,
-            //                                                 repeatCnt=imgStruct.ImageType.SameResultsCounter});
-            // }
-
-
             SaveChanges();
-
-
-
-
-
         }
 
         //function to check if two byte arrays are equal
@@ -228,6 +186,17 @@ namespace ViewModel
                 TypesOfImages.Remove(type);
             foreach (var image in Images)
                 Images.Remove(image);
+        }
+        public int GetNumOfEachType(string type)
+        {
+            var curType = TypesOfImages.Where(t => t.PredictionStringResult.Equals(type)).FirstOrDefault();
+            if (curType == null)
+                return 0;
+            else
+            {
+                Entry(curType).Collection(obj => obj.RecognizedImages).Load();
+                return curType.RecognizedImages.Count();
+            }
         }
     }
 

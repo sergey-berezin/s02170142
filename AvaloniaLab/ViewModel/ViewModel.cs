@@ -18,14 +18,14 @@ namespace ViewModel
         void PredictionHandler_WPF(object sender, PredictionEventArgs e)
         {
             ReturnMessage rm = (ReturnMessage)e.RecognitionResult;
+
             Dispatcher.UIThread.InvokeAsync(() =>
             {
-                AllRecognitionResults.Add(rm.PredictionStringResult);
+                if(!AllUniqueRecognitionResults.Contains(rm.PredictionStringResult))
+                    AllUniqueRecognitionResults.Add(rm.PredictionStringResult);
+
                 UpdateCollection(rm);
             });
-
-
-
 
             //заносим результаты распознования в БД
             imagesLibraryContext.AddRecognitionResultToDatabase(rm);
@@ -36,7 +36,9 @@ namespace ViewModel
         {
             Dispatcher.UIThread.InvokeAsync(() =>
              {
-                 AllRecognitionResults.Add(rm.PredictionStringResult);
+                 if(!AllUniqueRecognitionResults.Contains(rm.PredictionStringResult))
+                    AllUniqueRecognitionResults.Add(rm.PredictionStringResult);
+                    
                  UpdateCollection(rm);
              });
         }
@@ -199,7 +201,7 @@ namespace ViewModel
 
             RecognizedImagesCollection = new ObservableCollection<ReturnMessage>();
             RecognizedImagesCollection.CollectionChanged += RenewComboBoxSelectedCollection;
-            AllRecognitionResults = new List<string>();
+            AllUniqueRecognitionResults = new List<string>();
             DbStatisticCollection = new ObservableCollection<string>();
             _numOfRecognizedImages = 0;
             ProgressBar = 0;
@@ -278,6 +280,7 @@ namespace ViewModel
             ReturnMessage returnMessageFromDB;
             foreach (string file in allFiles)
             {
+                // string f = file;
                 returnMessageFromDB = imagesLibraryContext.SearchFile(file);
                 if (returnMessageFromDB == null)
                 //didn't find same file in database
@@ -333,30 +336,29 @@ namespace ViewModel
             }
 
         }
-        List<string> AllRecognitionResults;
+        List<string> AllUniqueRecognitionResults;
         void UpdateStatistic()
         {
-            var q = from x in AllRecognitionResults
-                    group x by x into g
-                    let count = g.Count()
-                    orderby count descending
-                    select new { Value = g.Key, Count = count };
-            foreach (var x in q)
-            {
-                // Console.WriteLine("Value: " + x.Value + " Count: " + x.Count);
-                DbStatisticCollection.Add($"Class: {x.Value} Count: {x.Count}");
-            }
+        //     var q = from x in AllUniqueRecognitionResults
+        //             group x by x into g
+        //             let count = g.Count()
+        //             orderby count descending
+        //             select new { Value = g.Key, Count = count };
+        //     foreach (var x in q)
+        //     {
+        //         // Console.WriteLine("Value: " + x.Value + " Count: " + x.Count);
+        //         DbStatisticCollection.Add($"Class: {x.Value} Count: {x.Count}");
+        //     }
             // foreach(var t in imagesLibraryContext.statList)
             //     DbStatisticCollection.Add($"Class: {t.stringResult} Count: {t.repeatCnt}");
 
+            foreach (var t in AllUniqueRecognitionResults)
+                DbStatisticCollection.Add($"Class: {t} Count: {imagesLibraryContext.GetNumOfEachType(t)}" );
             if (PropertyChanged != null)
             {
-                // Console.WriteLine("stat collection count = " + DbStatisticCollection.Count());
 
                 PropertyChanged(this, new PropertyChangedEventArgs(nameof(DbStatisticCollection)));
             }
-
-            //DbStatisticCollection
         }
 
     }
