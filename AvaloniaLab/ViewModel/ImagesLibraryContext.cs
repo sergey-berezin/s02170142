@@ -44,9 +44,9 @@ namespace ViewModel
         //some trick from stackoverflow
         public ImagesLibraryContext() { Database.EnsureCreated(); }
 
-        public DbSet<PredictionResult> TypesOfImages { get; set; }
-        public DbSet<ImageRecognized> Images { get; set; }
 
+        public DbSet<ImageRecognized> Images { get; set; }
+        public DbSet<PredictionResult> TypesOfImages { get; set; }
         public DbSet<ImageRecognizedDetails> Details { get; set; }
 
 
@@ -62,19 +62,20 @@ namespace ViewModel
             string fileName = Path.GetFileName(imagePath);
 
             int numOfRepeatedFiles = 0;
-            var query = Images.Where(imageSet => imageSet.Path.Equals(imagePath));
+            var query = Images.Where(obj => obj.Path.Equals(imagePath));
             numOfRepeatedFiles = query.Count();
 
             if (numOfRepeatedFiles > 0)
 
             {
+                
                 ImageRecognized imageRecognized = null;
 
                 foreach (var fileInQuery in query)
                 {
 
-                    Entry(fileInQuery).Reference(obj => obj.ImageRecognizedDetails).Load();
-                    Entry(fileInQuery).Reference(obj => obj.ImageType).Load();
+                    Entry(fileInQuery).Reference("ImageRecognizedDetails").Load();
+
 
 
                     byte[] bdBinaryFile = fileInQuery.ImageRecognizedDetails.BinaryFile;
@@ -90,15 +91,28 @@ namespace ViewModel
                     {
 
                         imageRecognized = fileInQuery;
+                        
+                        Entry(fileInQuery).Reference("ImageType").Load();
                         break;
                     }
                 }
-
+                //found needed file
                 if (imageRecognized != null)
                 {
+                    Entry(imageRecognized).Reference("ImageType").Load();
 
+                    string s = null;
+                    try
+                    {
+                        s = imageRecognized.ImageType.PredictionStringResult;
+                    }
+                    catch (NullReferenceException e)
+                    {
 
-                    return new ReturnMessage(imagePath, imageRecognized.ImageType.PredictionStringResult);
+                    }
+                    if (s == null)
+                    Console.WriteLine(imagePath);
+                    return new ReturnMessage(imagePath, s);
                 }
                 else
                 //didn't found
@@ -133,35 +147,40 @@ namespace ViewModel
             //set binary content
             imgStruct.ImageRecognizedDetails.BinaryFile = byteArrayImage;
 
-
-            PredictionResult predictionResult;
-            try
+            if (processedImage.PredictionStringResult ==null)
             {
-                predictionResult = TypesOfImages.First(obj => obj.PredictionStringResult.Equals(processedImage.PredictionStringResult));
-                Entry(predictionResult).Collection(obj => obj.RecognizedImages).Load();
+                Console.WriteLine("!!!!!! in addtoDB + processedImage.PredictionStringResult ==null");
             }
-            catch (InvalidOperationException)
+            var query = TypesOfImages.Where(obj => processedImage.PredictionStringResult.Equals(obj.PredictionStringResult));
+            if (query.Count() > 0)
             {
-                predictionResult = null;
-            }
-            if (predictionResult == null)
-            {
-                imgStruct.ImageType = new PredictionResult() { PredictionStringResult = processedImage.PredictionStringResult };
-                imgStruct.ImageType.RecognizedImages = new List<ImageRecognized>();
-                imgStruct.ImageType.RecognizedImages.Add(imgStruct);
-
-                Images.Add(imgStruct);
-                TypesOfImages.Add(imgStruct.ImageType);
-                Details.Add(imgStruct.ImageRecognizedDetails);
+                if (query.First().RecognizedImages == null)
+                {
+                    imgStruct.ImageType = new PredictionResult();
+                    imgStruct.ImageType.PredictionStringResult = processedImage.PredictionStringResult;
+                    TypesOfImages.Add(imgStruct.ImageType);
+                }
+                else{
+                    
+                imgStruct.ImageType = query.First();
+                
+                }
+                // imgStruct.ImageType.RecognizedImages = query.First().RecognizedImages;
+                // imgStruct.ImageType.PredictionStringResult = processedImage.PredictionStringResult;
+                
+                // TypesOfImages.Add(imgStruct.ImageType);
+                // if (query.First().PredictionStringResult == null)
+                //     Console.WriteLine("zzzzzzzzzzz");
             }
             else
             {
-                imgStruct.ImageType = predictionResult;
-                imgStruct.ImageType.RecognizedImages.Add(imgStruct);
-
-                Images.Add(imgStruct);
-                Details.Add(imgStruct.ImageRecognizedDetails);
+                imgStruct.ImageType = new PredictionResult();
+                imgStruct.ImageType.PredictionStringResult = processedImage.PredictionStringResult;
+                TypesOfImages.Add(imgStruct.ImageType);
             }
+
+            Details.Add(imgStruct.ImageRecognizedDetails);
+            Images.Add(imgStruct);
             SaveChanges();
         }
 
@@ -194,7 +213,7 @@ namespace ViewModel
                 return 0;
             else
             {
-                Entry(curType).Collection(obj => obj.RecognizedImages).Load();
+                Entry(curType).Collection("RecognizedImages").Load();
                 return curType.RecognizedImages.Count();
             }
         }

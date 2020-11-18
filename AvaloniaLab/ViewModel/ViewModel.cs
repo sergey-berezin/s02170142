@@ -9,6 +9,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using Avalonia.Threading;
 using ImgProcLib;
+using System.Threading;
 
 namespace ViewModel
 {
@@ -24,11 +25,16 @@ namespace ViewModel
                 if(!AllUniqueRecognitionResults.Contains(rm.PredictionStringResult))
                     AllUniqueRecognitionResults.Add(rm.PredictionStringResult);
 
-                UpdateCollection(rm);
+                UpdateCollection(rm); 
+                
+                
             });
-
+            
+            lock(lockobj){
             //заносим результаты распознования в БД
-            imagesLibraryContext.AddRecognitionResultToDatabase(rm);
+                imagesLibraryContext.AddRecognitionResultToDatabase(rm);
+            }
+           
         }
 
         //выводим результаты, которые уже есть в БД
@@ -42,6 +48,8 @@ namespace ViewModel
                  UpdateCollection(rm);
              });
         }
+
+        private object lockobj;
 
         string _dirr = null;
         public event PropertyChangedEventHandler PropertyChanged;
@@ -145,7 +153,7 @@ namespace ViewModel
 
 
         public ViewModel(IUIServices uiservices)
-        {
+        {   lockobj=new object();
             //database
             imagesLibraryContext = new ImagesLibraryContext();
             DbStatisticCollection = null;

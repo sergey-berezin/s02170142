@@ -9,7 +9,7 @@ using ViewModel;
 namespace ViewModel.Migrations
 {
     [DbContext(typeof(ImagesLibraryContext))]
-    [Migration("20201118134945_First")]
+    [Migration("20201118170532_First")]
     partial class First
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
