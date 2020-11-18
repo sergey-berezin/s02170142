@@ -65,6 +65,7 @@ namespace ViewModel
             var query = Images.Where(obj => obj.Path.Equals(imagePath));
             numOfRepeatedFiles = query.Count();
 
+
             if (numOfRepeatedFiles > 0)
 
             {
