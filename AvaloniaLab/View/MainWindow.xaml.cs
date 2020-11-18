@@ -17,6 +17,7 @@ namespace View
             InitializeComponent();
 
             uiservices = new MyAppUIServices(this,
+                                                this.FindControl<ListBox>("statisticImagesListBox"),
 
                                                  this.FindControl<ListBox>("recognizedImagesListBox"),
                                                  this.FindControl<ListBox>("chosenTypeImagesListBox"),
@@ -43,6 +44,7 @@ namespace View
     class MyAppUIServices : IUIServices
     {
         Window window;
+        ListBox statisticImagesListBox;
         ListBox recognizedImagesListBox;
         ListBox chosenTypeImagesListBox;
         ComboBox possibleResultsComboBox;
@@ -53,6 +55,7 @@ namespace View
         TextBlock possibleResultsTextBlock;
 
         public MyAppUIServices(Window window,
+                               ListBox statisticImagesListBox,
                                ListBox recognizedImagesListBox, ListBox chosenTypeImagesListBox, 
                                ComboBox possibleResultsComboBox,
                                ProgressBar progressBar, TextBlock progressBarTextBlock, 
@@ -60,6 +63,7 @@ namespace View
                                )
         {
             this.window = window;
+            this.statisticImagesListBox = statisticImagesListBox;
             this.recognizedImagesListBox = recognizedImagesListBox;
             this.chosenTypeImagesListBox = chosenTypeImagesListBox;
             this.possibleResultsComboBox = possibleResultsComboBox;
