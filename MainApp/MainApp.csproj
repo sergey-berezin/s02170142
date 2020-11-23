@@ -7,6 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ImgProcLib\ImgProcLib.csproj" />
+
+    <ProjectReference Include="../ImgProcLib/ImgProcLib.csproj" />
+    <PackageReference Include="Avalonia" Version="0.9.12" />
   </ItemGroup>
+  
 </Project>
